@@ -1,0 +1,1 @@
+"""SignalTrade transactional outbox publisher."""
