@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from signaltrade_messaging.model import MessageOutbox
-from signaltrade_messaging.publisher import OutboxPublisher
+from signaltrade_messaging.publisher import OutboxPublisher, PermanentPublishError
 
 
 def session_with_message():
@@ -35,3 +35,23 @@ def test_failure_delays_retry():
     result = OutboxPublisher(queue).publish_pending(db, now=now)
     assert (result.published, result.failed) == (0, 1)
     assert message.status == "pending" and message.next_attempt_at == now + timedelta(seconds=2)
+
+
+def test_permanent_failure_is_not_retried():
+    db, message = session_with_message()
+    def fail(*args, **kwargs): raise PermanentPublishError("unsupported contract")
+    queue = type("Queue", (), {"publish": fail})()
+    result = OutboxPublisher(queue).publish_pending(db, now=datetime.now(timezone.utc))
+    assert (result.published, result.failed) == (0, 1)
+    assert message.status == "failed"
+    assert message.last_error == "unsupported contract"
+
+
+def test_transient_failure_stops_after_max_attempts():
+    db, message = session_with_message()
+    message.attempt_count = 2
+    def fail(*args, **kwargs): raise RuntimeError("queue unavailable")
+    queue = type("Queue", (), {"publish": fail})()
+    OutboxPublisher(queue, max_attempts=3).publish_pending(db, now=datetime.now(timezone.utc))
+    assert message.attempt_count == 3
+    assert message.status == "failed"
