@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     sqs_strategy_command_queue_name: str = "signaltrade-strategy-commands"
     sqs_notification_queue_name: str = "signaltrade-notifications"
     outbox_poll_seconds: float = 1.0
+    outbox_max_attempts: int = 10
     metrics_enabled: bool = True
     messaging_metrics_port: int = 9105
     log_level: str = "INFO"

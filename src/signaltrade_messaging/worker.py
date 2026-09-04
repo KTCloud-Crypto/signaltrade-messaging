@@ -30,7 +30,7 @@ def run() -> None:
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     if settings.metrics_enabled:
         start_http_server(settings.messaging_metrics_port)
-    publisher = OutboxPublisher(RoutedQueuePublisher())
+    publisher = OutboxPublisher(RoutedQueuePublisher(), max_attempts=settings.outbox_max_attempts)
     logger.info("Outbox publisher started")
     while not stop.is_set():
         try:
